@@ -1,0 +1,60 @@
+# data model segments
+
+- segment: &core Core
+- segment: &lu Lookup
+- segment: &sum Summary
+
+# Tables and columns
+
+- table: spp
+  segment: *core
+  display: accent1
+  columns:
+    spp_id: {key: yes}
+    Kingdom:
+    "...":
+
+- table: sites
+  segment: *lu
+  display: accent3
+  columns:
+    site_id: {key: yes}
+    loc_id: {ref: locs}
+    Year:
+    "...":
+
+- table: qrt
+  segment: *core
+  display: accent1
+  columns:
+    qrt_id: {key: yes}
+    site_id: {ref: sites}
+    Year:
+    "...":
+    
+- table: locs
+  segment: *lu
+  display: accent3
+  columns:
+    loc_id: {key: yes}
+    loc_isr:
+    lon:
+    lat:
+    "...":
+    
+- table: obs
+  segment: *core
+  display: accent1
+  columns:
+    qrt_id: {key: yes, ref: qrt}
+    spp_id: {key: yes, ref: spp}
+    "n":
+
+- table: obs_sum
+  segment: *sum
+  display: accent2
+  columns:
+    spp_id: {key: yes, ref: spp}
+    n_avg:
+    "...":
+

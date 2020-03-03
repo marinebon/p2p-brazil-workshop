@@ -1,0 +1,141 @@
+---
+title: "Extract Taxa list from SARCE country data"
+output:
+  github_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This script will read SARCE data and extract the list of taxa. The extracted list will be matched against WoRMS and the corrections made. The SARCE dataset is already split by country.
+
+## Read the data
+
+The SARCE dataset in full is a table in wide format, with the taxon name in the columns along with many other variables identifying the site. If the taxon is present is marked with "1" otherwise is "NA".  We will produce a table in long format with the taxon name in the column "scientificName" (standard DwC name). As this table is only presence/absence we will recode that in the "occurrence" variable.
+
+**NOTE:** The data should be in the data/Sarce directory. If not, change the path in the `read_csv` command.
+
+
+```{r dataread}
+library(tidyr)
+library(readr)  ## this one is better for reading the wide-table
+
+## I'll use Venezuela as case study here
+## read the data
+SARCE <- read_csv("data/SARCE/Venezuela.csv")
+
+## see the tablel dimensions
+dim(SARCE)
+
+```
+
+
+## Clean the data
+
+You see that the SARCEezuela SARCE table has `r dim(SARCE)[1]` rows and `r dim(SARCE)[2]` columns. 
+
+**TIP**: in RStudio, if you have a very wide table (i.e. many columns) don't try to view the table in the viewer as it will take very long time to accommodate all the columns in the memory
+
+Now, let extract the names of the taxa in the table. In the SARCE table, the first two columns are identification values, then the taxon name are in columns 3:1113. The rest of the columns are variables associated with the site (lat, lon, depth, zone, etc). More on those columns later...
+
+So lets use `tidyr::gather` to convert the table from wide to long format
+
+```{r wide2long}
+
+SARCE.long = gather(SARCE, key=scientificName, value=occurrence, 3:1113)
+
+## look at the structure
+str(SARCE.long)
+```
+
+
+We need to do some cleaning. The taxon name is separated by an underscore. we want a space (for WoRMS to process the match). We don't need lines with `occurrence` equal to NA (that means that this particular taxon was not observed) nor the taxon "Abiotic"
+
+```{r dataclean}
+
+## remote the lines with occurrence == NA
+SARCE.long = SARCE.long %>% drop_na(occurrence)
+
+## this could also be done with standard R command is.na
+## SARCE.long = SARCE.long[!is.na(SARCE.long$occurrence),]
+
+## remote the lines with taxa "abiotic"
+SARCE.long = SARCE.long[SARCE.long$scientificName!="Abiota",]
+
+## replace the underscore in the taxon name by a space
+SARCE.long$scientificName = gsub("_", " ", SARCE.long$scientificName)
+
+
+```
+
+
+## Extract the taxa list
+
+Now with the date clean, let extract the taxon list, and save it in a text file for matching with WoRMS
+
+```{r extracttaxa}
+taxa = unique(SARCE.long$scientificName)
+print(taxa)
+
+## save it in a text file
+writeLines(unique(SARCE.long$scientificName), con="data/SARCE/SARCE_taxa.csv")
+
+```
+
+
+## Frequency of Taxa
+
+Lets make a simple plot of the frequency of each taxa. But remember that this is not the final taxa list: it must be checked before with WoRMS
+
+In this case I'll use the basic plotting system of R and a bar plot. But you can use `ggplot2` package which is much more configurable and produces publication quality plots
+
+
+```{r taxaplot, fig.height=10, fig.width=8}
+
+## first make a table of frequencies
+taxafreq = table(SARCE.long$scientificName)
+
+## make a basic horizontal barplot
+barplot(sort(taxafreq, decreasing = T), las=2, cex.names=0.3, horiz = T)
+
+```
+
+
+But this plot has all the taxa and makes the labels unreadable. Let say that we're more interested in the taxa that represent the 75% of all occurrences
+
+```{r plot75taxa, fig.height=10, fig.width=8}
+## Make a table of proportions
+taxafreq.prop = prop.table(taxafreq)
+
+## convert the table into a data frame 
+taxafrec.df = as.data.frame(taxafreq.prop)
+
+## sort the table by proportion (descending)
+taxafrec.df = taxafrec.df[order(taxafrec.df$Freq, decreasing = T),]
+
+## add the accum freq
+taxafrec.df$Freq.accum = cumsum(taxafrec.df$Freq)
+
+## plot the taxa for 75% of all occurrences
+## first look at the indices of the taxa accummulats up to 75% and pick the first index
+limit75 = which(taxafrec.df$Freq.accum>0.75)[1]
+
+## do the plot with the reduced data frame
+## note that this time we will be plotting a data frame not a table like the previous plot
+## change the margins to accomodate long labels
+par(mar=c(6,10,4,2))
+## make the plot
+barplot(taxafrec.df$Freq[1:limit75], names.arg = taxafrec.df$Var1[1:limit75],  las=2, cex.names=0.7, horiz = T)
+
+```
+
+You see in this data set "Film", and "CCA" are main components. You probably won't need it. Also many taxa are not fully identified at species level. WoRMS could help you to correct and homogenize your taxon list.
+
+
+Now got to [WoRMS](marinespecies.org) and do the match.
+

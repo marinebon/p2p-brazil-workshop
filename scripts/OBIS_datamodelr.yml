@@ -1,0 +1,61 @@
+# data model segments
+
+- segment: &core Occurrence Core
+- segment: &emof Occurrence Core & eMoF
+- segment: &event EventOccurrence Core & eMoF
+
+# Tables and columns
+
+- table: Occurrence Core
+  segment: *core
+  display: accent1
+  columns:
+    occurrenceID: {key: yes}
+    eventID: {key: yes}
+    Kingdom:
+    "...":
+
+- table: MeasurementOrFact Extension
+  segment: *core
+  display: accent3
+  columns:
+    site_id: {key: yes}
+    loc_id: {ref: locs}
+    Year:
+    "...":
+
+- table: qrt
+  segment: *core
+  display: accent1
+  columns:
+    qrt_id: {key: yes}
+    site_id: {ref: sites}
+    Year:
+    "...":
+    
+- table: locs
+  segment: *lu
+  display: accent3
+  columns:
+    loc_id: {key: yes}
+    loc_isr:
+    lon:
+    lat:
+    "...":
+    
+- table: obs
+  segment: *core
+  display: accent1
+  columns:
+    qrt_id: {key: yes, ref: qrt}
+    spp_id: {key: yes, ref: spp}
+    "n":
+
+- table: obs_sum
+  segment: *sum
+  display: accent2
+  columns:
+    spp_id: {key: yes, ref: spp}
+    n_avg:
+    "...":
+
